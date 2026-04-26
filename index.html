@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MineIt Diamonds 💎</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d0d1a;
+      --surface:  #1a1a2e;
+      --surface2: #252540;
+      --border:   #3a3a5e;
+      --text:     #e8e8f8;
+      --muted:    #7070a0;
+      --gold:     #ffd700;
+      --silver:   #b0b8cc;
+      --accent:   #8b5cf6;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .logo { font-size: 20px; font-weight: 800; letter-spacing: -.5px; }
+    .logo span { color: var(--gold); }
+    .currencies { display: flex; gap: 20px; }
+    .currency { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; }
+    .currency .val { font-size: 16px; }
+    .currency.coins .val { color: var(--gold); }
+    .currency.scrip .val { color: var(--silver); }
+    .level-badge {
+      background: var(--accent);
+      color: #fff;
+      padding: 4px 14px;
+      border-radius: 99px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    /* ── NOTIFICATION ── */
+    #notif {
+      position: fixed;
+      top: 64px; left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 100;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .3s;
+      white-space: nowrap;
+    }
+    #notif.show { opacity: 1; }
+    #notif.diamond { border-color: #ffd700; color: #ffd700; }
+    #notif.coins   { border-color: #4ade80; color: #4ade80; }
+    #notif.info    { border-color: var(--accent); color: var(--accent); }
+    #notif.error   { border-color: #f87171; color: #f87171; }
+
+    /* ── LAYOUT ── */
+    .game-layout {
+      flex: 1;
+      display: flex;
+      gap: 0;
+      overflow: hidden;
+    }
+
+    /* ── MINE AREA ── */
+    .mine-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      gap: 18px;
+    }
+    .level-info {
+      text-align: center;
+    }
+    .level-info h2 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+    .level-info p  { font-size: 13px; color: var(--muted); }
+
+    /* Progress bar */
+    .progress-wrap { width: 420px; }
+    .progress-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+    .progress-bar { background: var(--surface2); border-radius: 99px; height: 8px; overflow: hidden; }
+    .progress-fill { background: linear-gradient(90deg, var(--accent), #c084fc); height: 100%; border-radius: 99px; transition: width .4s ease; }
+
+    /* Grid */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(7, 60px);
+      gap: 6px;
+    }
+    .tile {
+      width: 60px; height: 60px;
+      border-radius: 8px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: transform .1s, box-shadow .1s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    /* Hardness 1 — soft rock */
+    .tile.hidden {
+      background: radial-gradient(circle at 30% 30%, #5c3d26, #3b2418);
+      border: 2px solid #2a1810;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,.4);
+    }
+    /* Hardness 2 — medium rock */
+    .tile.hidden.h2 {
+      background: radial-gradient(circle at 30% 30%, #3e2a18, #28180e);
+      border: 2px solid #1e1008;
+    }
+    /* Hardness 3 — hard rock */
+    .tile.hidden.h3 {
+      background: radial-gradient(circle at 30% 30%, #22160a, #140c04);
+      border: 2px solid #0e0804;
+    }
+    /* Crack overlays via pseudo-element */
+    .tile.hidden.h2::before, .tile.hidden.h3::before {
+      content: '';
+      position: absolute; inset: 0;
+      pointer-events: none;
+      border-radius: 6px;
+    }
+    .tile.hidden.h2::before {
+      background: repeating-linear-gradient(
+        62deg, transparent 0px, transparent 18px,
+        rgba(0,0,0,.25) 18px, rgba(0,0,0,.25) 19px
+      );
+    }
+    .tile.hidden.h3::before {
+      background:
+        repeating-linear-gradient(62deg,  transparent 0, transparent 12px, rgba(0,0,0,.3) 12px, rgba(0,0,0,.3) 13px),
+        repeating-linear-gradient(-62deg, transparent 0, transparent 12px, rgba(0,0,0,.3) 12px, rgba(0,0,0,.3) 13px);
+    }
+    /* Damage progress — partially mined tiles lighten slightly */
+    .tile.hidden.dmg1 { filter: brightness(1.25); }
+    .tile.hidden.dmg2 { filter: brightness(1.5); }
+    /* Hits-left pip indicators */
+    .hits-pips {
+      position: absolute; bottom: 4px; left: 0; right: 0;
+      display: flex; justify-content: center; gap: 3px;
+    }
+    .pip { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,.35); }
+    .tile.hidden:hover {
+      transform: scale(1.06);
+      box-shadow: 0 0 12px rgba(139,92,246,.4), inset 0 2px 4px rgba(0,0,0,.4);
+    }
+    .tile.hidden:active { transform: scale(.96); }
+    .tile.ore {
+      background: radial-gradient(circle at 40% 40%, #6b4c35, #4a3224);
+      border: 2px solid #3a2418;
+      cursor: default;
+    }
+    .tile.diamond {
+      background: radial-gradient(circle at 30% 30%, #1e1e3a, #141428);
+      border: 2px solid #4a3a7a;
+      cursor: default;
+    }
+    .tile.mining { animation: shake .15s ease; }
+    @keyframes shake {
+      0%,100% { transform: rotate(0deg); }
+      25% { transform: rotate(-4deg) scale(.95); }
+      75% { transform: rotate(4deg) scale(.95); }
+    }
+
+    /* Ore debris dots */
+    .ore-debris {
+      display: grid; grid-template-columns: repeat(3,1fr); gap: 2px; padding: 10px;
+    }
+    .debris-dot {
+      width: 10px; height: 10px; border-radius: 2px;
+      background: #5a4030;
+    }
+    .debris-dot:nth-child(odd)  { background: #4a3028; }
+    .debris-dot:nth-child(3n)   { background: #6a5040; }
+
+    /* Gem */
+    .gem-wrap {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      animation: gemReveal .4s cubic-bezier(.34,1.56,.64,1) forwards;
+    }
+    @keyframes gemReveal {
+      0% { transform: scale(0) rotate(45deg); opacity: 0; }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+    .gem {
+      width: 32px; height: 32px;
+      transform: rotate(45deg);
+      border-radius: 4px 12px 4px 12px;
+      position: relative;
+    }
+    .gem::after {
+      content: '';
+      position: absolute;
+      top: 20%; left: 20%;
+      width: 30%; height: 30%;
+      background: rgba(255,255,255,.6);
+      border-radius: 50%;
+    }
+    .gem-label {
+      position: absolute;
+      bottom: 2px; left: 0; right: 0;
+      text-align: center;
+      font-size: 9px;
+      font-weight: 700;
+      color: rgba(255,255,255,.9);
+      text-shadow: 0 1px 3px rgba(0,0,0,.8);
+      letter-spacing: .02em;
+    }
+
+    /* Bottom controls */
+    .mine-controls { display: flex; gap: 10px; }
+    .btn {
+      padding: 10px 20px; border: none; border-radius: 8px;
+      font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #7c3aed; transform: translateY(-1px); }
+    .btn-labor {
+      background: var(--surface2);
+      color: var(--silver);
+      border: 1px solid var(--border);
+    }
+    .btn-labor:hover { background: #303050; transform: translateY(-1px); }
+    .btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 300px;
+      min-width: 300px;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .sidebar-tabs { display: flex; border-bottom: 1px solid var(--border); }
+    .sidebar-tab {
+      flex: 1; padding: 12px; text-align: center;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      color: var(--muted); border: none; background: none;
+      border-bottom: 2px solid transparent;
+      transition: all .15s;
+    }
+    .sidebar-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+    .sidebar-panel { flex: 1; overflow-y: auto; padding: 14px; display: none; }
+    .sidebar-panel.active { display: block; }
+
+    /* Inventory */
+    .inv-empty { text-align: center; padding: 32px 16px; color: var(--muted); font-size: 13px; }
+    .inv-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+    .inv-stat { background: var(--surface2); border-radius: 8px; padding: 10px 12px; text-align: center; }
+    .inv-stat .stat-val { font-size: 18px; font-weight: 700; color: var(--gold); }
+    .inv-stat .stat-lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .diamond-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .dc-gem {
+      width: 28px; height: 28px;
+      transform: rotate(45deg);
+      border-radius: 3px 10px 3px 10px;
+      flex-shrink: 0;
+    }
+    .dc-info { flex: 1; min-width: 0; }
+    .dc-name { font-size: 12px; font-weight: 700; }
+    .dc-sub  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .dc-sell {
+      background: #16a34a; color: #fff;
+      border: none; border-radius: 6px;
+      padding: 5px 10px; font-size: 12px; font-weight: 600;
+      cursor: pointer; white-space: nowrap;
+    }
+    .dc-sell:hover { background: #15803d; }
+
+    /* Shop */
+    .shop-section-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin: 12px 0 6px; }
+    .equip-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 8px;
+      position: relative;
+    }
+    .equip-card.owned { border-color: var(--accent); }
+    .equip-card.owned::after { content: 'EQUIPPED'; position: absolute; top: 10px; right: 10px; font-size: 9px; font-weight: 800; color: var(--accent); letter-spacing: .06em; }
+    .equip-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .equip-icon { font-size: 20px; }
+    .equip-name { font-size: 14px; font-weight: 700; }
+    .equip-desc { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .equip-footer { display: flex; align-items: center; justify-content: space-between; }
+    .equip-chance { font-size: 12px; color: #4ade80; font-weight: 600; }
+    .buy-btn {
+      background: var(--gold); color: #1a1a00;
+      border: none; border-radius: 6px;
+      padding: 5px 12px; font-size: 12px; font-weight: 700;
+      cursor: pointer;
+    }
+    .buy-btn:hover { background: #ffc200; }
+    .buy-btn:disabled { background: var(--surface); color: var(--muted); cursor: not-allowed; border: 1px solid var(--border); }
+
+    /* Level up modal */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.7);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 200;
+      opacity: 0; pointer-events: none; transition: opacity .3s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      text-align: center;
+      max-width: 380px;
+      width: 90%;
+      transform: scale(.9); transition: transform .3s;
+    }
+    .modal-overlay.open .modal { transform: scale(1); }
+    .modal h2 { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
+    .modal p { font-size: 14px; color: var(--muted); margin-bottom: 20px; }
+    .modal .gems-row { font-size: 40px; letter-spacing: 8px; margin-bottom: 20px; }
+
+    /* Active mode badge */
+    .mode-badge {
+      display: none; align-items: center; gap: 8px;
+      background: #1e1040; border: 1px solid var(--accent);
+      border-radius: 8px; padding: 8px 16px;
+      font-size: 13px; font-weight: 600; color: #c4b5fd;
+      animation: pulse .8s infinite alternate;
+    }
+    .mode-badge.visible { display: flex; }
+    @keyframes pulse { from { box-shadow: 0 0 4px #8b5cf666; } to { box-shadow: 0 0 12px #8b5cf6aa; } }
+    .mode-cancel { background: none; border: none; color: #f87171; cursor: pointer; font-size: 16px; padding: 0 4px; }
+
+    /* Lucky streak counter in header */
+    .lucky-hud { display:none; align-items:center; gap:5px; font-size:13px; font-weight:700; color:#4ade80; }
+    .lucky-hud.visible { display:flex; }
+
+    /* Shop locked items */
+    .equip-card.locked { opacity: .45; }
+    .lock-tag { font-size: 11px; color: var(--muted); display:flex; align-items:center; gap:4px; }
+    .unlock-badge {
+      display: inline-block; font-size: 10px; font-weight: 700;
+      background: #2a1a40; color: #a78bfa; border: 1px solid #6d28d9;
+      border-radius: 4px; padding: 1px 6px; margin-left: 6px;
+    }
+    .shop-section-label {
+      font-size: 11px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .07em;
+      margin: 14px 0 6px; display:flex; align-items:center; gap:8px;
+    }
+    .shop-section-label::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    /* Sell all button */
+    .sell-all-btn {
+      width:100%; background:#1a3a2a; color:#4ade80; border:1px solid #166534;
+      border-radius:7px; padding:7px; font-size:13px; font-weight:600;
+      cursor:pointer; margin-bottom:10px; transition:background .15s;
+    }
+    .sell-all-btn:hover { background:#163020; }
+
+    /* Jewelry modal */
+    .jewel-select-grid { display:flex; flex-wrap:wrap; gap:6px; margin:12px 0; }
+    .jewel-card {
+      border:2px solid transparent; border-radius:8px; padding:8px 10px;
+      background:var(--surface2); cursor:pointer; transition:border-color .1s;
+      display:flex; align-items:center; gap:8px; width:100%;
+    }
+    .jewel-card.selected { border-color:var(--gold); }
+    .jewel-card:hover { border-color:var(--border); }
+
+    /* Sparkle particles */
+    .sparkle {
+      position: fixed;
+      pointer-events: none;
+      font-size: 16px;
+      animation: sparkleFloat 1s ease-out forwards;
+      z-index: 50;
+    }
+    @keyframes sparkleFloat {
+      0%   { transform: translateY(0) scale(1); opacity: 1; }
+      100% { transform: translateY(-80px) scale(0); opacity: 0; }
+    }
+
+    /* ── MINING ANIMATIONS ── */
+    .mine-anim {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: none; z-index: 10;
+    }
+    .mine-anim-icon {
+      font-size: 30px; display: block;
+      animation-duration: 350ms;
+      animation-fill-mode: both;
+      animation-timing-function: ease-out;
+    }
+
+    /* ⛏️ Pickaxe swings down with a bounce */
+    @keyframes animPickaxe {
+      0%   { transform: rotate(-70deg) scale(.5) translateY(-10px); opacity:0; }
+      30%  { transform: rotate(25deg)  scale(1.3) translateY(2px);  opacity:1; }
+      55%  { transform: rotate(-12deg) scale(1.0) translateY(0); }
+      75%  { transform: rotate(8deg)   scale(.95); }
+      100% { transform: rotate(0deg)   scale(.5);  opacity:0; }
+    }
+
+    /* 🔩 Drill spins rapidly with vibration */
+    @keyframes animDrill {
+      0%   { transform: scale(.3) rotate(0deg);    opacity:0; }
+      20%  { transform: scale(1.2) rotate(200deg); opacity:1; }
+      65%  { transform: scale(1.0) rotate(780deg) translateY(4px); }
+      100% { transform: scale(.5)  rotate(1080deg); opacity:0; }
+    }
+
+    /* 💎 Diamond drill bounces with a pop */
+    @keyframes animDiamondDrill {
+      0%   { transform: scale(0)   translateY(12px);  opacity:0; }
+      38%  { transform: scale(1.5) translateY(-6px);  opacity:1; }
+      62%  { transform: scale(.9)  translateY(4px); }
+      80%  { transform: scale(1.1) translateY(0); }
+      100% { transform: scale(.4)  translateY(-8px);  opacity:0; }
+    }
+
+    /* ⚡ Laser zaps — stretches vertically then vanishes */
+    @keyframes animLaser {
+      0%   { transform: scaleY(.1) translateY(-18px); opacity:0; filter:brightness(4); }
+      22%  { transform: scaleY(1.4) translateY(0);    opacity:1; filter:brightness(2); }
+      55%  { transform: scaleY(.85) translateY(5px);  filter:brightness(1.5); }
+      100% { transform: scaleY(.15) translateY(0);    opacity:0; }
+    }
+
+    /* 🔥 Plasma fire bursts and rotates */
+    @keyframes animPlasma {
+      0%   { transform: scale(.2) rotate(0deg);              opacity:0; filter:hue-rotate(0deg); }
+      28%  { transform: scale(1.6) rotate(20deg);             opacity:1; filter:hue-rotate(40deg); }
+      55%  { transform: scale(1.1) rotate(-10deg);            filter:hue-rotate(80deg); }
+      78%  { transform: scale(1.35) rotate(18deg);            filter:hue-rotate(120deg); }
+      100% { transform: scale(.35) rotate(-20deg);            opacity:0; }
+    }
+
+    /* 💥 Explosion pops big then fades */
+    @keyframes animExplosion {
+      0%   { transform: scale(.2);               opacity:0; }
+      22%  { transform: scale(2.2);              opacity:1; }
+      50%  { transform: scale(1.6) rotate(12deg); }
+      75%  { transform: scale(1.9) rotate(-8deg); }
+      100% { transform: scale(.7);               opacity:0; }
+    }
+
+    /* 👷 Labor miner slides in, jiggles, slides out */
+    @keyframes animLabor {
+      0%   { transform: translateX(-28px) scale(.7); opacity:0; }
+      28%  { transform: translateX(0)     scale(1.15); opacity:1; }
+      55%  { transform: translateX(0)     scale(1.0) rotate(-12deg); }
+      78%  { transform: translateX(0)     scale(1.0) rotate(10deg); }
+      100% { transform: translateX(26px)  scale(.7);  opacity:0; }
+    }
+
+    /* 🍀 Lucky clover floats up with spin */
+    @keyframes animLucky {
+      0%   { transform: translateY(8px)  scale(.4) rotate(0deg);   opacity:0; }
+      32%  { transform: translateY(-5px) scale(1.3) rotate(200deg); opacity:1; }
+      65%  { transform: translateY(-9px) scale(1.0) rotate(300deg); }
+      100% { transform: translateY(-18px) scale(.5) rotate(360deg); opacity:0; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">MineIt <span>Diamonds</span> 💎</div>
+  <div class="currencies">
+    <div class="currency coins">🪙 Coins <span class="val" id="coinsVal">100</span></div>
+    <div class="currency scrip">🎟 Scrip <span class="val" id="scripVal">50</span></div>
+  </div>
+  <div class="lucky-hud" id="luckyHud">🍀 Lucky ×<span id="luckyCount">0</span></div>
+  <div class="level-badge" id="levelBadge">Level 1 – Alluvial</div>
+</header>
+
+<!-- NOTIFICATION -->
+<div id="notif"></div>
+
+<!-- GAME -->
+<div class="game-layout">
+
+  <!-- MINE AREA -->
+  <div class="mine-area">
+    <div class="level-info">
+      <h2 id="levelTitle">Alluvial Fields</h2>
+      <p id="levelDesc">Surface deposits — small diamonds, perfect for beginners</p>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-label">
+        <span>Progress to next level</span>
+        <span id="progressText">0 / 5 diamonds</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    </div>
+
+    <div class="grid" id="grid"></div>
+
+    <div class="mode-badge" id="modeBadge">
+      <span id="modeText">💥 Explosive mode — click a tile to blast 3×3</span>
+      <button class="mode-cancel" onclick="cancelMode()" title="Cancel">✕</button>
+    </div>
+    <div class="mine-controls">
+      <button class="btn btn-labor" onclick="autoMine()" id="laborBtn">
+        👷 Hire Labor (10 Scrip — mine 4 tiles)
+      </button>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-tabs">
+      <button class="sidebar-tab active" onclick="switchTab('inventory')">💎 Inventory</button>
+      <button class="sidebar-tab"        onclick="switchTab('shop')">🛒 Shop</button>
+    </div>
+    <div class="sidebar-panel active" id="panel-inventory"></div>
+    <div class="sidebar-panel"        id="panel-shop"></div>
+  </div>
+</div>
+
+<!-- JEWELRY MODAL -->
+<div class="modal-overlay" id="jewelryModal" onclick="closeOnOverlay(event,'jewelryModal')">
+  <div class="modal" style="width:460px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px 14px;border-bottom:1px solid var(--border)">
+      <h2 style="font-size:16px;font-weight:700">💍 Jewelry Workshop</h2>
+      <button class="mode-cancel" onclick="closeModal('jewelryModal')" style="font-size:18px">✕</button>
+    </div>
+    <div style="padding:16px 22px">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:4px">Select exactly 3 diamonds to craft into jewelry worth <strong style="color:var(--gold)">2.5× combined value</strong>.</p>
+      <div class="jewel-select-grid" id="jewelSelectGrid"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+        <span id="jewelValue" style="font-size:14px;color:var(--gold);font-weight:700"></span>
+        <button class="btn btn-primary" id="craftBtn" onclick="craftJewelry()" disabled>Craft Jewelry</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LEVEL UP MODAL -->
+<div class="modal-overlay" id="levelModal">
+  <div class="modal">
+    <div class="gems-row">💎✨💎</div>
+    <h2 id="levelModalTitle">Level Up!</h2>
+    <p id="levelModalDesc">You've advanced to a new mining site.</p>
+    <button class="btn btn-primary" onclick="dismissLevelModal()" style="width:100%">Continue Mining →</button>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ──
+const LEVELS = [
+  { name:'Alluvial Fields',          short:'Alluvial',    desc:'Surface gravel — mostly rock, diamonds are rare here',               diamondsNeeded:8,  maxCarats:0.5,  fancyChance:.02 },
+  { name:'Open Pit Mine',            short:'Open Pit',    desc:'Blasted terraces — harder rock but bigger diamonds await',           diamondsNeeded:15, maxCarats:1.2,  fancyChance:.04 },
+  { name:'Underground Tunnels',      short:'Underground', desc:'Dense rock faces — you\'ll need a proper drill to make progress',    diamondsNeeded:22, maxCarats:2.0,  fancyChance:.07 },
+  { name:'Deep Cave System',         short:'Deep Cave',   desc:'Ancient kimberlite — rich veins hidden behind brutal rock',          diamondsNeeded:30, maxCarats:3.0,  fancyChance:.11 },
+  { name:'Volcanic Kimberlite Pipe', short:'Volcanic',    desc:'Magma-forged ore — scorching heat, spectacular diamonds',            diamondsNeeded:40, maxCarats:4.5,  fancyChance:.17 },
+  { name:'Mantle Depths',            short:'Mantle',      desc:'Earth\'s deepest layer — near-impenetrable, near-priceless stones',  diamondsNeeded:50, maxCarats:6.0,  fancyChance:.24 },
+  { name:'Asteroid Belt',            short:'Asteroid',    desc:'Cosmic ore — extraordinary diamonds forged in the stars',            diamondsNeeded:65, maxCarats:9.0,  fancyChance:.35 },
+];
+
+const EQUIPMENT = [
+  { name:'Hand Pickaxe',  icon:'⛏️',  chance:.04, cost:0,    unlockLevel:1, desc:'4% yield — struggles against hard rock' },
+  { name:'Steel Drill',   icon:'🔩',  chance:.12, cost:75,   unlockLevel:2, desc:'12% yield — handles medium rock well' },
+  { name:'Diamond Drill', icon:'💎',  chance:.24, cost:300,  unlockLevel:3, desc:'24% yield — cracks hard rock easily' },
+  { name:'Laser Cutter',  icon:'⚡',  chance:.40, cost:1200, unlockLevel:5, desc:'40% yield — melts through any hardness' },
+  { name:'Plasma Drill',  icon:'🔥',  chance:.62, cost:4000, unlockLevel:7, desc:'62% yield — nothing survives this heat' },
+];
+
+const SHOP_ITEMS = [
+  // Consumables
+  { id:'explosive', name:'Explosive Charge', icon:'💥', type:'consumable', unlockLevel:3,
+    cost:35,  desc:'Blast a 3×3 area — each tile has 50% diamond chance' },
+  { id:'lucky',     name:'Lucky Streak',     icon:'🍀', type:'consumable', unlockLevel:4,
+    cost:60,  desc:'Next 10 mines get +15% bonus diamond chance' },
+  { id:'scanner',   name:'Deep Scanner',     icon:'📡', type:'consumable', unlockLevel:5,
+    cost:25,  desc:'Peek at one tile — know if it holds a diamond before mining' },
+  { id:'geologist', name:'Geologist Survey', icon:'🔭', type:'consumable', unlockLevel:6,
+    cost:150, desc:'Highlights all diamond locations on the current grid' },
+  // Permanent upgrades
+  { id:'refinery',  name:'Ore Refinery',     icon:'🏭', type:'upgrade',    unlockLevel:4,
+    cost:200, desc:'Each mined ore tile earns 2 coins automatically' },
+  { id:'jewelry',   name:'Jewelry Workshop', icon:'💍', type:'upgrade',    unlockLevel:6,
+    cost:500, desc:'Combine any 3 diamonds into jewelry worth 2.5× their total value' },
+  { id:'masterGeo', name:'Master Geologist', icon:'🧠', type:'upgrade',    unlockLevel:7,
+    cost:2000,desc:'Permanently adds +6% diamond yield on top of all equipment' },
+];
+
+const CLARITIES = [
+  { grade:'FL',  label:'Flawless',  mult:12, w:.02 },
+  { grade:'VVS1',label:'VVS1',      mult:8,  w:.05 },
+  { grade:'VVS2',label:'VVS2',      mult:6,  w:.08 },
+  { grade:'VS1', label:'VS1',       mult:4,  w:.12 },
+  { grade:'VS2', label:'VS2',       mult:3,  w:.15 },
+  { grade:'SI1', label:'SI1',       mult:2,  w:.20 },
+  { grade:'SI2', label:'SI2',       mult:1.5,w:.20 },
+  { grade:'I1',  label:'Included',  mult:1,  w:.18 },
+];
+
+const COLORS = [
+  { grade:'D',    label:'Colorless',     mult:5,  hex:'#d4eeff', w:.03 },
+  { grade:'E',    label:'Colorless',     mult:4,  hex:'#ddf0ff', w:.05 },
+  { grade:'F',    label:'Colorless',     mult:3.5,hex:'#e8f5ff', w:.07 },
+  { grade:'G',    label:'Near Colorless',mult:3,  hex:'#f0f4f8', w:.10 },
+  { grade:'H',    label:'Near Colorless',mult:2.5,hex:'#f5f5f0', w:.12 },
+  { grade:'I',    label:'Near Colorless',mult:2,  hex:'#f8f8f2', w:.12 },
+  { grade:'J',    label:'Near Colorless',mult:1.8,hex:'#fafaf5', w:.12 },
+  { grade:'K',    label:'Faint Yellow',  mult:1.5,hex:'#fffbe0', w:.10 },
+  { grade:'L',    label:'Faint Yellow',  mult:1.3,hex:'#fff8c0', w:.09 },
+  { grade:'M',    label:'Faint Yellow',  mult:1.2,hex:'#fff5a0', w:.09 },
+];
+const FANCY_COLORS = [
+  { grade:'Pink',   label:'Fancy Pink',  mult:15, hex:'#ffb6d9', w:.030 },
+  { grade:'Blue',   label:'Fancy Blue',  mult:20, hex:'#70b8ff', w:.020 },
+  { grade:'Yellow', label:'Fancy Yellow',mult:10, hex:'#ffe44d', w:.035 },
+  { grade:'Green',  label:'Fancy Green', mult:18, hex:'#7de89a', w:.015 },
+  { grade:'Red',    label:'Fancy Red',   mult:50, hex:'#ff5566', w:.005 },
+];
+
+const CUTS = [
+  { grade:'Excellent', mult:2.0, w:.15 },
+  { grade:'Very Good', mult:1.5, w:.30 },
+  { grade:'Good',      mult:1.2, w:.35 },
+  { grade:'Fair',      mult:1.0, w:.20 },
+];
+
+// ── STATE ──
+let state = {
+  level:          0,
+  coins:          100,
+  scrip:          50,
+  equipment:      0,
+  grid:           [],
+  inventory:      [],
+  diamondsSoFar:  0,
+  totalValue:     0,
+  sitesExplored:  1,
+  idCounter:      1,
+  // consumable modes
+  explosiveMode:  false,
+  scannerMode:    false,
+  luckyMines:     0,
+  geologistUsed:  false,
+  // permanent upgrades
+  refineryOwned:  false,
+  jewelryOwned:   false,
+  masterGeoOwned: false,
+  // jewelry crafting
+  jewelSelected:  [],
+};
+
+// ── HELPERS ──
+function weightedPick(arr) {
+  const total = arr.reduce((s,x) => s + x.w, 0);
+  let r = Math.random() * total;
+  for (const x of arr) { r -= x.w; if (r <= 0) return x; }
+  return arr[arr.length-1];
+}
+
+function generateDiamond() {
+  const lv = LEVELS[state.level];
+  const carats = +((Math.random() * (lv.maxCarats - 0.1) + 0.1).toFixed(2));
+  const clarity = weightedPick(CLARITIES);
+  const isFancy = Math.random() < lv.fancyChance;
+  const color   = isFancy ? weightedPick(FANCY_COLORS) : weightedPick(COLORS);
+  const cut     = weightedPick(CUTS);
+  const value   = Math.round(carats * 120 * clarity.mult * color.mult * cut.mult);
+  return {
+    id: state.idCounter++,
+    carats, clarity, color, cut, value, isFancy,
+    label: isFancy ? `Fancy ${color.grade}` : `${color.grade} / ${clarity.grade}`,
+  };
+}
+
+// ── GRID ──
+function effectiveChance(overrideChance) {
+  const base = overrideChance !== undefined ? overrideChance : EQUIPMENT[state.equipment].chance;
+  return Math.min(0.95, base + (state.masterGeoOwned ? 0.06 : 0));
+}
+
+function newGrid() {
+  state.geologistUsed = false;
+  const chance = effectiveChance();
+  state.grid = Array.from({length:35}, (_,i) => {
+    const hardChance = 0.10 + state.level * 0.05;
+    const medChance  = 0.28 + state.level * 0.04;
+    const r = Math.random();
+    const hardness = r < hardChance ? 3 : r < hardChance + medChance ? 2 : 1;
+    // Pre-determine diamond (hard rock gets bonus chance as reward)
+    const dChance = chance * (hardness === 3 ? 1.8 : hardness === 2 ? 1.3 : 1);
+    const hasDiamond = Math.random() < dChance;
+    const diamond = hasDiamond ? generateDiamond() : null;
+    return { id:i, state:'hidden', hardness, hitsLeft:hardness, diamond, marked:false };
+  });
+  renderGrid();
+}
+
+function tileHTML(cell) {
+  if (cell.state === 'ore') {
+    return `<div class="ore-debris">${Array.from({length:9},()=>'<div class="debris-dot"></div>').join('')}</div>`;
+  }
+  if (cell.state === 'diamond') {
+    const d = cell.diamond;
+    const glow = `0 0 14px ${d.color.hex}88, 0 0 4px ${d.color.hex}`;
+    return `<div class="gem-wrap">
+      <div class="gem" style="background:radial-gradient(circle at 30% 25%, #fff 0%, ${d.color.hex} 55%, ${d.color.hex}99 100%); box-shadow:${glow}"></div>
+      <div class="gem-label">${d.carats}ct</div>
+    </div>`;
+  }
+  // hidden: geologist marker or pip indicators
+  if (cell.marked) {
+    return `<div style="font-size:20px;line-height:60px;text-align:center">💎</div>`;
+  }
+  if (cell.hardness > 1) {
+    const pips = Array.from({length:cell.hitsLeft}, ()=>'<div class="pip"></div>').join('');
+    return `<div class="hits-pips">${pips}</div>`;
+  }
+  return '';
+}
+
+function tileClass(cell) {
+  if (cell.state !== 'hidden') return 'tile ' + cell.state;
+  let cls = 'tile hidden';
+  if (cell.hardness > 1) cls += ` h${cell.hardness}`;
+  if (cell.hitsLeft < cell.hardness) cls += ` dmg${cell.hardness - cell.hitsLeft}`;
+  return cls;
+}
+
+function renderGrid() {
+  const g = document.getElementById('grid');
+  g.innerHTML = '';
+  state.grid.forEach((cell,i) => {
+    const div = document.createElement('div');
+    div.className = tileClass(cell);
+    div.dataset.idx = i;
+    if (cell.state === 'hidden') div.onclick = () => mine(i);
+    div.innerHTML = tileHTML(cell);
+    g.appendChild(div);
+  });
+}
+
+function revealTile(idx, forceDiamond) {
+  const cell = state.grid[idx];
+  const tiles = document.getElementById('grid').children;
+  const hasDiamond = forceDiamond !== undefined ? forceDiamond : !!cell.diamond;
+
+  if (hasDiamond && cell.diamond) {
+    cell.state = 'diamond';
+    cell.hitsLeft = 0;
+    state.inventory.unshift(cell.diamond);
+    state.diamondsSoFar++;
+    state.totalValue += cell.diamond.value;
+    if (state.luckyMines > 0) { state.luckyMines--; updateLuckyHud(); }
+    const d = cell.diamond;
+    const label = d.isFancy ? `Fancy ${d.color.grade} diamond!` : `${d.carats}ct ${d.color.grade}/${d.clarity.grade} diamond!`;
+    notify(label + ` (${d.value} coins est.)`, 'diamond');
+    sparkle(tiles[idx]);
+    checkProgress();
+  } else {
+    cell.state = 'ore';
+    cell.diamond = null;
+    cell.hitsLeft = 0;
+    if (state.refineryOwned) { state.coins += 2; }
+    if (state.luckyMines > 0) { state.luckyMines--; updateLuckyHud(); }
+  }
+
+  const div = tiles[idx];
+  div.className = tileClass(cell);
+  div.onclick = null;
+  div.innerHTML = tileHTML(cell);
+}
+
+function mine(idx) {
+  const cell = state.grid[idx];
+  if (cell.state !== 'hidden') return;
+  const tiles = document.getElementById('grid').children;
+  const div = tiles[idx];
+  if (div.dataset.animating) return;
+
+  // ── Scanner mode: peek without mining ──
+  if (state.scannerMode) {
+    state.scannerMode = false;
+    setModeBadge(false);
+    const result = cell.diamond ? '💎 Diamond detected!' : '🪨 Empty rock.';
+    const type   = cell.diamond ? 'diamond' : 'info';
+    showMineAnim(div, 'lucky', null); // quick radar-style peek flash
+    notify(`Scanner: ${result}`, type);
+    if (cell.diamond) div.style.boxShadow = `0 0 16px ${cell.diamond.color.hex}`;
+    setTimeout(() => { if (div) div.style.boxShadow = ''; }, 1500);
+    return;
+  }
+
+  // ── Explosive mode: blast 3×3 ──
+  if (state.explosiveMode) {
+    state.explosiveMode = false;
+    setModeBadge(false);
+    const col = idx % 7, row = Math.floor(idx / 7);
+    const blastIdxs = [];
+    for (let r = row-1; r <= row+1; r++)
+      for (let c = col-1; c <= col+1; c++)
+        if (r>=0 && r<5 && c>=0 && c<7) blastIdxs.push(r*7+c);
+
+    blastIdxs.forEach((bi, n) => {
+      setTimeout(() => {
+        const bc = state.grid[bi];
+        if (bc.state !== 'hidden') return;
+        const btile = document.getElementById('grid').children[bi];
+        btile.onclick = null;
+        showMineAnim(btile, 'explosion', () => {
+          bc.hitsLeft = 0;
+          const hit = Math.random() < effectiveChance(0.50);
+          if (!hit) bc.diamond = null;
+          revealTile(bi);
+          updateHUD(); renderInventory();
+          checkSiteExhausted();
+        });
+      }, n * 100);
+    });
+    notify('💥 BOOM! 3×3 area blasted!', 'info');
+    return;
+  }
+
+  // ── Normal mining — animate first, then apply hit ──
+  div.dataset.animating = '1';
+  const animType = EQUIP_ANIM[state.equipment] || 'pickaxe';
+  showMineAnim(div, animType, () => {
+    delete div.dataset.animating;
+
+    // Apply lucky streak bonus
+    if (state.luckyMines > 0 && !cell.diamond) {
+      const bonusChance = effectiveChance() + 0.15;
+      const hardBonus = cell.hardness === 3 ? 1.8 : cell.hardness === 2 ? 1.3 : 1;
+      if (Math.random() < bonusChance * hardBonus) {
+        cell.diamond = generateDiamond();
+        showMineAnim(div, 'lucky', null); // lucky bonus visual flourish
+      }
+    }
+
+    div.classList.add('mining');
+    setTimeout(() => div?.classList.remove('mining'), 180);
+
+    cell.hitsLeft--;
+
+    if (cell.hitsLeft > 0) {
+      div.className = tileClass(cell);
+      div.innerHTML = tileHTML(cell);
+      div.onclick = () => mine(idx);
+      notify(`Hard rock — ${cell.hitsLeft} hit${cell.hitsLeft>1?'s':''} remaining`, 'info');
+    } else {
+      revealTile(idx);
+    }
+
+    updateHUD();
+    renderInventory();
+    checkSiteExhausted();
+  });
+}
+
+function checkSiteExhausted() {
+  if (state.grid.every(c => c.state !== 'hidden')) {
+    state.sitesExplored++;
+    setTimeout(() => { notify('Site exhausted — new dig site opened!', 'info'); newGrid(); }, 600);
+  }
+}
+
+function autoMine() {
+  if (state.scrip < 10) { notify('Not enough Scrip! Need 10.', 'error'); return; }
+  state.scrip -= 10;
+  const hidden = state.grid.map((c,i) => c.state === 'hidden' ? i : -1).filter(i => i >= 0);
+  const picks = hidden.sort(() => Math.random()-.5).slice(0, 4);
+  picks.forEach((idx, n) => {
+    setTimeout(() => {
+      if (state.grid[idx].state !== 'hidden') return;
+      const tile = document.getElementById('grid').children[idx];
+      tile.onclick = null;
+      showMineAnim(tile, 'labor', () => {
+        if (state.grid[idx].state === 'hidden') {
+          state.grid[idx].hitsLeft = 0;
+          revealTile(idx);
+          updateHUD(); renderInventory(); checkSiteExhausted();
+        }
+      });
+    }, n * 220);
+  });
+  updateHUD();
+}
+
+// ── PROGRESS ──
+function checkProgress() {
+  const lv = LEVELS[state.level];
+  updateProgress();
+  if (state.diamondsSoFar >= lv.diamondsNeeded) {
+    if (state.level < LEVELS.length - 1) {
+      setTimeout(() => {
+        state.level++;
+        state.diamondsSoFar = 0;
+        newGrid();
+        showLevelModal();
+        updateHUD();
+      }, 800);
+    } else {
+      setTimeout(() => showWinModal(), 800);
+    }
+  }
+}
+
+function updateProgress() {
+  const lv = LEVELS[state.level];
+  const pct = Math.min(100, (state.diamondsSoFar / lv.diamondsNeeded) * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressText').textContent = `${state.diamondsSoFar} / ${lv.diamondsNeeded} diamonds`;
+}
+
+// ── CONSUMABLE ACTIONS ──
+function activateExplosive() {
+  if (state.coins < 35) { notify('Not enough coins!','error'); return; }
+  state.coins -= 35; state.explosiveMode = true;
+  setModeBadge(true, '💥 Explosive mode — click a tile to blast 3×3');
+  updateHUD();
+}
+function activateScanner() {
+  if (state.coins < 25) { notify('Not enough coins!','error'); return; }
+  state.coins -= 25; state.scannerMode = true;
+  setModeBadge(true, '📡 Scanner mode — click a tile to peek inside');
+  updateHUD();
+}
+function activateLucky() {
+  if (state.coins < 60) { notify('Not enough coins!','error'); return; }
+  state.coins -= 60; state.luckyMines += 10; updateLuckyHud();
+  notify('🍀 Lucky Streak active! Next 10 mines boosted.', 'info');
+  updateHUD();
+}
+function activateGeologist() {
+  if (state.coins < 150) { notify('Not enough coins!','error'); return; }
+  state.coins -= 150;
+  state.grid.forEach(c => { if (c.state === 'hidden' && c.diamond) c.marked = true; });
+  state.geologistUsed = true;
+  renderGrid();
+  notify('🔭 Geologist marked all diamonds on this grid!', 'diamond');
+  updateHUD();
+}
+function cancelMode() {
+  state.explosiveMode = false; state.scannerMode = false;
+  setModeBadge(false);
+}
+function setModeBadge(show, text) {
+  const el = document.getElementById('modeBadge');
+  el.classList.toggle('visible', show);
+  if (text) document.getElementById('modeText').textContent = text;
+}
+function updateLuckyHud() {
+  const el = document.getElementById('luckyHud');
+  el.classList.toggle('visible', state.luckyMines > 0);
+  document.getElementById('luckyCount').textContent = state.luckyMines;
+}
+function buyUpgrade(id) {
+  const item = SHOP_ITEMS.find(x => x.id === id);
+  if (!item || state.coins < item.cost) { notify('Not enough coins!','error'); return; }
+  state.coins -= item.cost;
+  if (id === 'refinery')  state.refineryOwned  = true;
+  if (id === 'jewelry')   state.jewelryOwned   = true;
+  if (id === 'masterGeo') { state.masterGeoOwned = true; notify('🧠 Master Geologist: +6% permanent yield!','diamond'); }
+  notify(`${item.name} purchased!`, 'coins');
+  updateHUD();
+}
+
+// ── JEWELRY WORKSHOP ──
+function openJewelry() {
+  state.jewelSelected = [];
+  renderJewelGrid();
+  openModal('jewelryModal');
+}
+function renderJewelGrid() {
+  const grid = document.getElementById('jewelSelectGrid');
+  if (!state.inventory.length) { grid.innerHTML = '<p style="color:var(--muted);font-size:13px">No diamonds in vault.</p>'; return; }
+  grid.innerHTML = state.inventory.map(d => {
+    const sel = state.jewelSelected.includes(d.id) ? ' selected' : '';
+    return `<div class="jewel-card${sel}" onclick="toggleJewelSelect(${d.id})">
+      <div style="width:22px;height:22px;transform:rotate(45deg);border-radius:3px 8px 3px 8px;background:radial-gradient(circle at 30% 25%,#fff,${d.color.hex});flex-shrink:0"></div>
+      <div style="font-size:12px"><strong>${d.carats}ct ${d.isFancy?'Fancy '+d.color.grade:d.color.grade}</strong><br><span style="color:var(--muted)">${d.clarity.label} · ${d.cut.grade}</span></div>
+      <div style="margin-left:auto;font-size:12px;color:var(--gold)">${d.value}🪙</div>
+    </div>`;
+  }).join('');
+  updateJewelValue();
+}
+function toggleJewelSelect(id) {
+  if (state.jewelSelected.includes(id)) {
+    state.jewelSelected = state.jewelSelected.filter(x => x !== id);
+  } else if (state.jewelSelected.length < 3) {
+    state.jewelSelected.push(id);
+  }
+  renderJewelGrid();
+}
+function updateJewelValue() {
+  const sel = state.jewelSelected.map(id => state.inventory.find(d => d.id === id)).filter(Boolean);
+  const total = sel.reduce((s,d) => s+d.value, 0);
+  const crafted = Math.round(total * 2.5);
+  document.getElementById('jewelValue').textContent = sel.length === 3 ? `${total} → 💍 ${crafted} coins` : `Select ${3-sel.length} more diamond${3-sel.length!==1?'s':''}`;
+  document.getElementById('craftBtn').disabled = sel.length !== 3;
+}
+function craftJewelry() {
+  const sel = state.jewelSelected.map(id => state.inventory.find(d => d.id === id)).filter(Boolean);
+  if (sel.length !== 3) return;
+  const total = sel.reduce((s,d) => s+d.value, 0);
+  const crafted = Math.round(total * 2.5);
+  state.inventory = state.inventory.filter(d => !state.jewelSelected.includes(d.id));
+  state.coins += crafted;
+  state.jewelSelected = [];
+  closeModal('jewelryModal');
+  notify(`💍 Jewelry crafted and sold for ${crafted} coins!`, 'coins');
+  updateHUD(); renderInventory();
+}
+
+function updateHUD() {
+  document.getElementById('coinsVal').textContent = state.coins.toLocaleString();
+  document.getElementById('scripVal').textContent  = state.scrip.toLocaleString();
+  const lv = LEVELS[state.level];
+  document.getElementById('levelBadge').textContent  = `Level ${state.level+1} – ${lv.short}`;
+  document.getElementById('levelTitle').textContent  = lv.name;
+  document.getElementById('levelDesc').textContent   = lv.desc;
+  document.getElementById('laborBtn').disabled = state.scrip < 10 || state.grid.every(c => c.state !== 'hidden');
+  updateProgress();
+  renderShop();
+}
+
+// ── INVENTORY ──
+function renderInventory() {
+  const panel = document.getElementById('panel-inventory');
+  if (!state.inventory.length) {
+    panel.innerHTML = `
+      <div class="inv-stats">
+        <div class="inv-stat"><div class="stat-val">0</div><div class="stat-lbl">Diamonds Found</div></div>
+        <div class="inv-stat"><div class="stat-val">0</div><div class="stat-lbl">Total Value</div></div>
+      </div>
+      <div class="inv-empty">⛏️<br><br>No diamonds yet.<br>Start mining to fill your vault!</div>`;
+    return;
+  }
+  const totalInv = state.inventory.reduce((s,d) => s+d.value, 0);
+  panel.innerHTML = `
+    <div class="inv-stats">
+      <div class="inv-stat"><div class="stat-val" style="color:#a78bfa">${state.inventory.length}</div><div class="stat-lbl">In Vault</div></div>
+      <div class="inv-stat"><div class="stat-val">${totalInv.toLocaleString()}</div><div class="stat-lbl">Est. Value</div></div>
+    </div>
+    <button class="sell-all-btn" onclick="sellAll()">Sell All for ${totalInv.toLocaleString()} 🪙</button>
+    ${state.jewelryOwned ? `<button class="sell-all-btn" style="background:#1a1040;color:#c4b5fd;border-color:#6d28d9" onclick="openJewelry()">💍 Open Jewelry Workshop</button>` : ''}
+    ${state.inventory.map(d => `
+      <div class="diamond-card">
+        <div class="dc-gem" style="background:radial-gradient(circle at 30% 25%, #fff, ${d.color.hex}); box-shadow:0 0 8px ${d.color.hex}88"></div>
+        <div class="dc-info">
+          <div class="dc-name">${d.carats}ct ${d.isFancy ? `Fancy ${d.color.grade}` : d.color.grade}</div>
+          <div class="dc-sub">${d.clarity.label} · ${d.cut.grade} cut</div>
+        </div>
+        <button class="dc-sell" onclick="sellDiamond(${d.id})">Sell<br>${d.value}🪙</button>
+      </div>`).join('')}`;
+}
+
+function sellDiamond(id) {
+  const d = state.inventory.find(x => x.id === id);
+  if (!d) return;
+  state.inventory = state.inventory.filter(x => x.id !== id);
+  state.coins += d.value;
+  notify(`Sold for ${d.value} coins!`, 'coins');
+  updateHUD();
+  renderInventory();
+}
+
+function sellAll() {
+  if (!state.inventory.length) return;
+  const total = state.inventory.reduce((s,d) => s+d.value, 0);
+  state.coins += total;
+  state.inventory = [];
+  notify(`Sold all for ${total} coins!`, 'coins');
+  updateHUD();
+  renderInventory();
+}
+
+// ── SHOP ──
+function shopCard(content, locked=false) {
+  return `<div class="equip-card${locked?' locked':''}">${content}</div>`;
+}
+function lockTag(lv) {
+  return `<span class="lock-tag">🔒 Unlocks at Level ${lv}</span>`;
+}
+
+function renderShop() {
+  const curLv = state.level + 1;
+  const panel = document.getElementById('panel-shop');
+
+  // ── Equipment ──
+  let html = `<div class="shop-section-label">⛏️ Equipment</div>`;
+  EQUIPMENT.forEach((eq,i) => {
+    const owned  = i === state.equipment;
+    const canBuy = i === state.equipment + 1 && curLv >= eq.unlockLevel;
+    const needPrev = i === state.equipment + 1 && curLv < eq.unlockLevel;
+    const locked = i > state.equipment + 1 || needPrev;
+    html += shopCard(`
+      <div class="equip-header">
+        <span class="equip-icon">${eq.icon}</span>
+        <span class="equip-name">${eq.name}${curLv < eq.unlockLevel ? `<span class="unlock-badge">Lv${eq.unlockLevel}</span>` : ''}</span>
+      </div>
+      <div class="equip-desc">${eq.desc}</div>
+      <div class="equip-footer">
+        <span class="equip-chance">⬆ ${Math.round(eq.chance*100)}% yield</span>
+        ${owned   ? '<span style="font-size:12px;color:var(--accent)">✓ Active</span>' : ''}
+        ${canBuy  ? `<button class="buy-btn" onclick="buyEquipment(${i})" ${state.coins<eq.cost?'disabled':''}>${eq.cost}🪙</button>` : ''}
+        ${locked && !owned ? lockTag(eq.unlockLevel) : ''}
+      </div>`, locked && !owned);
+  });
+
+  // ── Consumables ──
+  html += `<div class="shop-section-label">🧪 Consumables</div>`;
+  const consumables = SHOP_ITEMS.filter(x => x.type === 'consumable');
+  consumables.forEach(item => {
+    const lv = item.unlockLevel;
+    const isLocked = curLv < lv;
+    html += shopCard(`
+      <div class="equip-header">
+        <span class="equip-icon">${item.icon}</span>
+        <span class="equip-name">${item.name}${isLocked?`<span class="unlock-badge">Lv${lv}</span>`:''}</span>
+      </div>
+      <div class="equip-desc">${item.desc}</div>
+      <div class="equip-footer">
+        ${isLocked ? lockTag(lv) : `<button class="buy-btn" onclick="activate_${item.id}()" ${state.coins<item.cost?'disabled':''}>${item.cost}🪙 Use</button>`}
+      </div>`, isLocked);
+  });
+
+  // ── Permanent Upgrades ──
+  html += `<div class="shop-section-label">🏗️ Upgrades</div>`;
+  const upgrades = SHOP_ITEMS.filter(x => x.type === 'upgrade');
+  upgrades.forEach(item => {
+    const lv = item.unlockLevel;
+    const isLocked = curLv < lv;
+    const isOwned = (item.id==='refinery'&&state.refineryOwned)||(item.id==='jewelry'&&state.jewelryOwned)||(item.id==='masterGeo'&&state.masterGeoOwned);
+    html += shopCard(`
+      <div class="equip-header">
+        <span class="equip-icon">${item.icon}</span>
+        <span class="equip-name">${item.name}${isLocked?`<span class="unlock-badge">Lv${lv}</span>`:''}</span>
+      </div>
+      <div class="equip-desc">${item.desc}</div>
+      <div class="equip-footer">
+        ${isLocked  ? lockTag(lv) : ''}
+        ${isOwned   ? '<span style="font-size:12px;color:var(--accent)">✓ Owned</span>' : ''}
+        ${!isLocked && !isOwned && item.id!=='jewelry' ? `<button class="buy-btn" onclick="buyUpgrade('${item.id}')" ${state.coins<item.cost?'disabled':''}>${item.cost}🪙 Buy</button>` : ''}
+        ${!isLocked && isOwned && item.id==='jewelry'  ? `<button class="buy-btn" onclick="openJewelry()">Open Workshop</button>` : ''}
+        ${!isLocked && !isOwned && item.id==='jewelry' ? `<button class="buy-btn" onclick="buyUpgrade('${item.id}')" ${state.coins<item.cost?'disabled':''}>${item.cost}🪙 Buy</button>` : ''}
+      </div>`, isLocked);
+  });
+
+  // ── Labor ──
+  html += `<div class="shop-section-label">👷 Labor</div>`;
+  html += shopCard(`
+    <div class="equip-header"><span class="equip-icon">👷</span><span class="equip-name">Hire Miners</span></div>
+    <div class="equip-desc">Auto-mine 4 tiles, powering through hardness instantly.</div>
+    <div class="equip-footer">
+      <span style="font-size:12px;color:var(--silver)">You have ${state.scrip} Scrip</span>
+      <button class="buy-btn" onclick="autoMine()" ${state.scrip<10?'disabled':''}>10🎟 Hire</button>
+    </div>`);
+
+  // ── Currency Exchange ──
+  html += `<div class="shop-section-label">💱 Exchange</div>`;
+  html += shopCard(`
+    <div class="equip-header"><span class="equip-icon">💱</span><span class="equip-name">Coins → Scrip</span></div>
+    <div class="equip-desc">Rate: <strong style="color:var(--gold)">5 🪙 = 1 🎟</strong></div>
+    <div style="display:flex;gap:5px;margin-top:8px;flex-wrap:wrap">
+      ${[10,25,50,100].map(s=>`<button class="buy-btn" onclick="buyScripWithCoins(${s})" ${state.coins<s*5?'disabled':''}
+        title="Costs ${s*5} coins">+${s}🎟<br><span style="font-size:10px">${s*5}🪙</span></button>`).join('')}
+    </div>`);
+
+  panel.innerHTML = html;
+}
+
+// Dispatch consumable activations
+function activate_explosive() { activateExplosive(); }
+function activate_lucky()     { activateLucky(); }
+function activate_scanner()   { activateScanner(); }
+function activate_geologist() { activateGeologist(); }
+
+function buyScripWithCoins(scrip) {
+  const cost = scrip * 5;
+  if (state.coins < cost) { notify('Not enough coins!', 'error'); return; }
+  state.coins -= cost;
+  state.scrip  += scrip;
+  notify(`Exchanged ${cost} coins for ${scrip} Scrip!`, 'info');
+  updateHUD();
+  renderShop();
+}
+
+function buyEquipment(idx) {
+  const eq = EQUIPMENT[idx];
+  if (state.coins < eq.cost) { notify('Not enough coins!', 'error'); return; }
+  state.coins -= eq.cost;
+  state.equipment = idx;
+  notify(`Upgraded to ${eq.name}!`, 'info');
+  updateHUD();
+  renderShop();
+}
+
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function closeOnOverlay(e, id) { if (e.target.id === id) closeModal(id); }
+
+// ── TABS ──
+function switchTab(tab) {
+  document.querySelectorAll('.sidebar-tab').forEach((t,i) => t.classList.toggle('active', ['inventory','shop'][i] === tab));
+  document.querySelectorAll('.sidebar-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-'+tab).classList.add('active');
+}
+
+// ── LEVEL MODAL ──
+function showLevelModal() {
+  const lv = LEVELS[state.level];
+  document.getElementById('levelModalTitle').textContent = `Welcome to ${lv.name}!`;
+  document.getElementById('levelModalDesc').textContent  = lv.desc;
+  document.getElementById('levelModal').classList.add('open');
+}
+function showWinModal() {
+  document.getElementById('levelModalTitle').textContent = '🎉 You Mined It All!';
+  document.getElementById('levelModalDesc').textContent  = `You've conquered all seven mining sites! Total value: ${state.totalValue.toLocaleString()} coins!`;
+  document.getElementById('levelModal').classList.add('open');
+}
+function dismissLevelModal() { document.getElementById('levelModal').classList.remove('open'); }
+
+// ── SPARKLE ──
+function sparkle(el) {
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  for (let i = 0; i < 5; i++) {
+    setTimeout(() => {
+      const s = document.createElement('div');
+      s.className = 'sparkle';
+      s.textContent = ['✨','💎','⭐','🌟','✦'][Math.floor(Math.random()*5)];
+      s.style.left = (r.left + Math.random()*r.width) + 'px';
+      s.style.top  = (r.top  + Math.random()*r.height) + 'px';
+      document.body.appendChild(s);
+      setTimeout(() => s.remove(), 1000);
+    }, i * 80);
+  }
+}
+
+// ── NOTIFICATION ──
+let notifTimer;
+function notify(msg, type) {
+  const el = document.getElementById('notif');
+  el.textContent = msg;
+  el.className = 'show ' + (type||'');
+  clearTimeout(notifTimer);
+  notifTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ── MINING ANIMATIONS ──
+const ANIM_CONFIGS = {
+  pickaxe:      { icon:'⛏️',  name:'animPickaxe',      dur:360 },
+  drill:        { icon:'🔩',  name:'animDrill',         dur:300 },
+  diamonddrill: { icon:'💎',  name:'animDiamondDrill',  dur:360 },
+  laser:        { icon:'⚡',  name:'animLaser',         dur:280 },
+  plasma:       { icon:'🔥',  name:'animPlasma',        dur:420 },
+  explosion:    { icon:'💥',  name:'animExplosion',     dur:320 },
+  labor:        { icon:'👷',  name:'animLabor',         dur:460 },
+  lucky:        { icon:'🍀',  name:'animLucky',         dur:380 },
+};
+const EQUIP_ANIM = ['pickaxe','drill','diamonddrill','laser','plasma'];
+
+function showMineAnim(tileEl, type, onDone) {
+  const cfg = ANIM_CONFIGS[type] || ANIM_CONFIGS.pickaxe;
+  const wrap = document.createElement('div');
+  wrap.className = 'mine-anim';
+  const icon = document.createElement('span');
+  icon.className = 'mine-anim-icon';
+  icon.style.animationName = cfg.name;
+  icon.style.animationDuration = cfg.dur + 'ms';
+  icon.textContent = cfg.icon;
+  wrap.appendChild(icon);
+  tileEl.appendChild(wrap);
+  setTimeout(() => { wrap.remove(); onDone && onDone(); }, cfg.dur);
+}
+
+// ── INIT ──
+newGrid();
+updateHUD();
+renderInventory();
+renderShop();
+</script>
+</body>
+</html>
