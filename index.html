@@ -454,14 +454,13 @@
 
     /* ── RESPONSIVE / MOBILE ── */
     @media (max-width: 640px) {
-      /* Let page scroll naturally — no viewport-trapped layout */
-      body { min-height: unset; display: block; }
+      /* Full viewport — no page scroll, everything contained */
+      body { height: 100dvh; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
 
-      /* Header: two-row compact */
+      /* Header: two-row compact, fixed at top */
       header {
         height: auto; padding: 8px 12px;
-        flex-wrap: wrap; gap: 4px;
-        position: sticky; top: 0; z-index: 50;
+        flex-wrap: wrap; gap: 4px; flex-shrink: 0;
       }
       .logo { font-size: 15px; order: 0; flex-shrink: 0; }
       .level-badge { font-size: 11px; padding: 3px 9px; order: 1; margin-left: auto; }
@@ -470,12 +469,13 @@
       .currency { font-size: 12px; }
       .currency .val { font-size: 13px; }
 
-      /* Game layout: single column, scrollable */
-      .game-layout { flex-direction: column; overflow: visible; height: auto; }
+      /* Game layout: column, fills remaining height, no overflow */
+      .game-layout { flex-direction: column; overflow: hidden; flex: 1; min-height: 0; }
 
-      /* Mine area: natural height */
+      /* Mine area: shrinks to fit content, never scrolls */
       .mine-area {
-        padding: 12px; gap: 10px;
+        flex-shrink: 0; overflow: visible;
+        padding: 10px 12px; gap: 8px;
         justify-content: flex-start; align-items: center;
       }
       .level-info h2 { font-size: 16px; }
@@ -484,17 +484,13 @@
       /* Progress bar: full width */
       .progress-wrap { width: 100%; }
 
-      /* Grid: fluid — tiles fill available width, stay square */
+      /* Grid: fluid tiles, always fits screen width */
       .grid {
         grid-template-columns: repeat(7, 1fr);
         gap: 3px;
         width: min(calc(100vw - 24px), 420px);
       }
-      .tile {
-        width: auto; height: auto;
-        aspect-ratio: 1;
-        border-radius: 5px;
-      }
+      .tile { width: auto; height: auto; aspect-ratio: 1; border-radius: 5px; }
       .gem  { width: 55%; height: 55%; }
       .gem-label { font-size: 6px; bottom: 1px; }
       .hits-pips { bottom: 2px; gap: 2px; }
@@ -505,27 +501,31 @@
 
       /* Buttons: full width, touch-friendly */
       .mine-controls { width: 100%; }
-      .btn-labor { width: 100%; font-size: 13px; padding: 13px 10px; }
+      .btn-labor { width: 100%; font-size: 13px; padding: 11px 10px; }
       .mode-badge { width: 100%; justify-content: space-between; font-size: 12px; }
 
-      /* Notification: full width */
+      /* Notification */
       #notif { width: calc(100% - 24px); white-space: normal; text-align: center; }
 
-      /* Sidebar: full width below grid, natural height */
+      /* Sidebar: fills remaining space, tabs fixed, panel scrolls internally */
       .sidebar {
+        flex: 1; min-height: 0;
         width: 100%; min-width: unset;
         border-left: none; border-top: 1px solid var(--border);
-        height: auto; overflow: visible;
+        display: flex; flex-direction: column; overflow: hidden;
       }
-      .sidebar-panel { max-height: none; overflow: visible; }
+      .sidebar-tabs { flex-shrink: 0; }
+      .sidebar-panel { flex: 1; overflow-y: auto; display: none; }
+      .sidebar-panel.active { display: block; }
 
       /* Shop cards: larger tap targets */
-      .buy-btn  { padding: 8px 14px; font-size: 13px; }
+      .buy-btn { padding: 8px 14px; font-size: 13px; }
       .dc-sell  { padding: 7px 10px; }
 
-      /* Modals */
+      /* Modals slide up from bottom */
       .modal-overlay { align-items: flex-end; }
       .modal { border-radius: 16px 16px 0 0; width: 100%; max-width: 100%; padding: 20px; }
+      .help-modal { max-height: 80dvh; width: 100%; border-radius: 16px 16px 0 0; }
     }
 
     /* ── MINING ANIMATIONS ── */
