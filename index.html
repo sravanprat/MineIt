@@ -418,56 +418,78 @@
 
     /* ── RESPONSIVE / MOBILE ── */
     @media (max-width: 640px) {
-      /* Header */
+      /* Let page scroll naturally — no viewport-trapped layout */
+      body { min-height: unset; display: block; }
+
+      /* Header: two-row compact */
       header {
         height: auto; padding: 8px 12px;
-        flex-wrap: wrap; gap: 6px;
+        flex-wrap: wrap; gap: 4px;
+        position: sticky; top: 0; z-index: 50;
       }
-      .logo { font-size: 16px; order: 0; }
-      .level-badge { font-size: 11px; padding: 3px 10px; order: 1; margin-left: auto; }
-      .currencies { order: 2; width: 100%; justify-content: space-around; }
-      .lucky-hud { order: 3; width: 100%; justify-content: center; }
-      .currency .val { font-size: 14px; }
+      .logo { font-size: 15px; order: 0; flex-shrink: 0; }
+      .level-badge { font-size: 11px; padding: 3px 9px; order: 1; margin-left: auto; }
+      .currencies { order: 2; width: 100%; justify-content: space-around; padding: 2px 0; }
+      .lucky-hud  { order: 3; width: 100%; justify-content: center; font-size: 12px; }
+      .currency { font-size: 12px; }
+      .currency .val { font-size: 13px; }
 
-      /* Stack layout vertically */
-      .game-layout { flex-direction: column; overflow-y: auto; }
+      /* Game layout: single column, scrollable */
+      .game-layout { flex-direction: column; overflow: visible; height: auto; }
 
-      /* Mine area */
-      .mine-area { padding: 10px 12px; gap: 10px; justify-content: flex-start; }
-      .level-info h2 { font-size: 17px; }
+      /* Mine area: natural height */
+      .mine-area {
+        padding: 12px; gap: 10px;
+        justify-content: flex-start; align-items: center;
+      }
+      .level-info h2 { font-size: 16px; }
       .level-info p  { font-size: 11px; }
 
-      /* Progress bar full width */
+      /* Progress bar: full width */
       .progress-wrap { width: 100%; }
 
-      /* Grid — smaller tiles that fit phone screen */
+      /* Grid: fluid — tiles fill available width, stay square */
       .grid {
-        grid-template-columns: repeat(7, 46px);
-        gap: 4px;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 3px;
+        width: min(calc(100vw - 24px), 420px);
       }
-      .tile { width: 46px; height: 46px; border-radius: 6px; }
-      .gem  { width: 24px; height: 24px; }
-      .gem-label { font-size: 7px; }
-      .mine-anim-icon { font-size: 22px; }
+      .tile {
+        width: auto; height: auto;
+        aspect-ratio: 1;
+        border-radius: 5px;
+      }
+      .gem  { width: 55%; height: 55%; }
+      .gem-label { font-size: 6px; bottom: 1px; }
+      .hits-pips { bottom: 2px; gap: 2px; }
       .pip  { width: 4px; height: 4px; }
+      .ore-debris { padding: 6px; gap: 1px; }
+      .debris-dot { width: 7px; height: 7px; }
+      .mine-anim-icon { font-size: 20px; }
 
-      /* Labor button full width */
+      /* Buttons: full width, touch-friendly */
       .mine-controls { width: 100%; }
-      .btn-labor { flex: 1; font-size: 13px; padding: 12px 10px; }
+      .btn-labor { width: 100%; font-size: 13px; padding: 13px 10px; }
+      .mode-badge { width: 100%; justify-content: space-between; font-size: 12px; }
 
-      /* Mode badge full width */
-      .mode-badge { width: 100%; justify-content: space-between; }
+      /* Notification: full width */
+      #notif { width: calc(100% - 24px); white-space: normal; text-align: center; }
 
-      /* Sidebar goes below the grid */
+      /* Sidebar: full width below grid, natural height */
       .sidebar {
         width: 100%; min-width: unset;
         border-left: none; border-top: 1px solid var(--border);
-        max-height: 320px;
+        height: auto; overflow: visible;
       }
+      .sidebar-panel { max-height: none; overflow: visible; }
 
-      /* Modals full width */
-      .modal { padding: 20px; }
-      .modal h2 { font-size: 22px; }
+      /* Shop cards: larger tap targets */
+      .buy-btn  { padding: 8px 14px; font-size: 13px; }
+      .dc-sell  { padding: 7px 10px; }
+
+      /* Modals */
+      .modal-overlay { align-items: flex-end; }
+      .modal { border-radius: 16px 16px 0 0; width: 100%; max-width: 100%; padding: 20px; }
     }
 
     /* ── MINING ANIMATIONS ── */
