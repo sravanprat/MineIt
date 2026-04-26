@@ -416,6 +416,60 @@
       100% { transform: translateY(-80px) scale(0); opacity: 0; }
     }
 
+    /* ── RESPONSIVE / MOBILE ── */
+    @media (max-width: 640px) {
+      /* Header */
+      header {
+        height: auto; padding: 8px 12px;
+        flex-wrap: wrap; gap: 6px;
+      }
+      .logo { font-size: 16px; order: 0; }
+      .level-badge { font-size: 11px; padding: 3px 10px; order: 1; margin-left: auto; }
+      .currencies { order: 2; width: 100%; justify-content: space-around; }
+      .lucky-hud { order: 3; width: 100%; justify-content: center; }
+      .currency .val { font-size: 14px; }
+
+      /* Stack layout vertically */
+      .game-layout { flex-direction: column; overflow-y: auto; }
+
+      /* Mine area */
+      .mine-area { padding: 10px 12px; gap: 10px; justify-content: flex-start; }
+      .level-info h2 { font-size: 17px; }
+      .level-info p  { font-size: 11px; }
+
+      /* Progress bar full width */
+      .progress-wrap { width: 100%; }
+
+      /* Grid — smaller tiles that fit phone screen */
+      .grid {
+        grid-template-columns: repeat(7, 46px);
+        gap: 4px;
+      }
+      .tile { width: 46px; height: 46px; border-radius: 6px; }
+      .gem  { width: 24px; height: 24px; }
+      .gem-label { font-size: 7px; }
+      .mine-anim-icon { font-size: 22px; }
+      .pip  { width: 4px; height: 4px; }
+
+      /* Labor button full width */
+      .mine-controls { width: 100%; }
+      .btn-labor { flex: 1; font-size: 13px; padding: 12px 10px; }
+
+      /* Mode badge full width */
+      .mode-badge { width: 100%; justify-content: space-between; }
+
+      /* Sidebar goes below the grid */
+      .sidebar {
+        width: 100%; min-width: unset;
+        border-left: none; border-top: 1px solid var(--border);
+        max-height: 320px;
+      }
+
+      /* Modals full width */
+      .modal { padding: 20px; }
+      .modal h2 { font-size: 22px; }
+    }
+
     /* ── MINING ANIMATIONS ── */
     .mine-anim {
       position: absolute; inset: 0;
