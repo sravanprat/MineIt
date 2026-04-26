@@ -416,6 +416,42 @@
       100% { transform: translateY(-80px) scale(0); opacity: 0; }
     }
 
+    /* ── HOW TO PLAY ── */
+    .help-btn {
+      background: var(--surface2); color: var(--muted);
+      border: 1px solid var(--border); border-radius: 50%;
+      width: 30px; height: 30px; font-size: 15px; font-weight: 800;
+      cursor: pointer; flex-shrink: 0; transition: all .15s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .help-btn:hover { color: var(--text); border-color: var(--accent); }
+
+    .help-modal {
+      max-width: 520px; width: 92%;
+      text-align: left; padding: 0;
+      max-height: 85vh; display: flex; flex-direction: column;
+    }
+    .help-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 22px 14px; border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .help-header h2 { font-size: 18px; font-weight: 800; }
+    .help-body {
+      overflow-y: auto; padding: 16px 22px 22px;
+      display: flex; flex-direction: column; gap: 16px;
+    }
+    .help-section { }
+    .help-title {
+      font-size: 13px; font-weight: 700; color: var(--accent);
+      text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px;
+    }
+    .help-body p  { font-size: 13px; color: var(--muted); line-height: 1.6; }
+    .help-body ul { padding-left: 16px; display: flex; flex-direction: column; gap: 4px; }
+    .help-body li { font-size: 13px; color: var(--muted); line-height: 1.5; }
+    .help-body strong { color: var(--text); }
+    .help-body em { color: var(--gold); font-style: normal; }
+
     /* ── RESPONSIVE / MOBILE ── */
     @media (max-width: 640px) {
       /* Let page scroll naturally — no viewport-trapped layout */
@@ -586,6 +622,7 @@
   </div>
   <div class="lucky-hud" id="luckyHud">🍀 Lucky ×<span id="luckyCount">0</span></div>
   <div class="level-badge" id="levelBadge">Level 1 – Alluvial</div>
+  <button class="help-btn" onclick="openModal('helpModal')" title="How to Play">?</button>
 </header>
 
 <!-- NOTIFICATION -->
@@ -658,6 +695,75 @@
     <h2 id="levelModalTitle">Level Up!</h2>
     <p id="levelModalDesc">You've advanced to a new mining site.</p>
     <button class="btn btn-primary" onclick="dismissLevelModal()" style="width:100%">Continue Mining →</button>
+  </div>
+</div>
+
+<!-- HOW TO PLAY MODAL -->
+<div class="modal-overlay" id="helpModal" onclick="closeOnOverlay(event,'helpModal')">
+  <div class="modal help-modal">
+    <div class="help-header">
+      <h2>⛏️ How to Play</h2>
+      <button class="mode-cancel" onclick="closeModal('helpModal')" style="font-size:20px">✕</button>
+    </div>
+    <div class="help-body">
+
+      <div class="help-section">
+        <div class="help-title">🎯 Goal</div>
+        <p>Mine diamonds by clicking tiles, sell them for coins, and advance through 7 increasingly rich mining sites — from Alluvial Fields all the way to the Asteroid Belt.</p>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">🪨 Mining Tiles</div>
+        <ul>
+          <li><strong>Click any dark tile</strong> to mine it — it reveals either ore (empty) or a diamond.</li>
+          <li>Some tiles are <strong>hard rock</strong> — they need 2 or 3 hits before breaking. Pip dots at the bottom show remaining hits.</li>
+          <li>Better equipment = higher chance of finding diamonds.</li>
+        </ul>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">💰 Currencies</div>
+        <ul>
+          <li><strong>🪙 Coins</strong> — earned by selling diamonds. Spent in the Shop on equipment, consumables, and upgrades.</li>
+          <li><strong>🎟 Scrip</strong> — labor currency. Spend 10 Scrip to hire miners who auto-mine 4 tiles. Exchange coins for scrip in the Shop.</li>
+        </ul>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">⛏️ Equipment</div>
+        <p>Upgrade your tool in the Shop to increase your diamond yield. Each level unlocks a more powerful drill — from Hand Pickaxe (4%) up to Plasma Drill (62%).</p>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">🧪 Consumables</div>
+        <ul>
+          <li><strong>💥 Explosive Charge</strong> — blast a 3×3 area, each tile gets 50% diamond chance.</li>
+          <li><strong>📡 Deep Scanner</strong> — peek inside one tile before mining it.</li>
+          <li><strong>🍀 Lucky Streak</strong> — next 10 mines get +15% bonus diamond chance.</li>
+          <li><strong>🔭 Geologist Survey</strong> — reveals all diamond locations on the current grid.</li>
+        </ul>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">🏗️ Upgrades</div>
+        <ul>
+          <li><strong>🏭 Ore Refinery</strong> — every empty ore tile earns 2 coins automatically.</li>
+          <li><strong>💍 Jewelry Workshop</strong> — combine 3 diamonds into jewelry worth 2.5× their total value.</li>
+          <li><strong>🧠 Master Geologist</strong> — permanently adds +6% diamond yield on top of all equipment.</li>
+        </ul>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">💎 Diamond Grading</div>
+        <p>Every diamond is graded on the <strong>4 Cs</strong>: Carats (size), Clarity (FL is best), Color (D is best), and Cut (Excellent is best). Higher grades = higher sell value. Rare <em>Fancy colored</em> diamonds (Pink, Blue, Red…) are worth far more.</p>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">📈 Levelling Up</div>
+        <p>Collect enough diamonds at each site to advance. Deeper levels have harder rock but bigger, rarer diamonds. New shop items unlock as you progress.</p>
+      </div>
+
+    </div>
   </div>
 </div>
 
